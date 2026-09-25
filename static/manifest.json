@@ -1,6 +1,6 @@
 {
-  "name": "智能精灵",
-  "short_name": "智能精灵",
+  "name": "妙文",
+  "short_name": "妙文",
   "description": "公众号文章生成器（App 托管版）",
   "start_url": "/",
   "display": "standalone",
