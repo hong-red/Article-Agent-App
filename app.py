@@ -1,4 +1,4 @@
-"""智能精灵 · 公众号文章生成器 —— App 托管版后端（多用户）。
+"""妙文 · 公众号文章生成器 —— App 托管版后端（多用户）。
 
 在网页版基础上新增：注册/登录（邀请码）、会话 token、用户密钥加密存储、按用户隔离文章、数据导出。
 """
@@ -21,7 +21,7 @@ import llm
 import markdown_html as mh
 import wechat
 
-app = FastAPI(title="智能精灵 App")
+app = FastAPI(title="妙文 App")
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,8 +43,8 @@ def _seed_invite():
     """首次启动若无邀请码，自动生成一个默认码（打印到日志，管理员可见）。"""
     if not db.list_invite_codes():
         code = "SMART2026"
-        db.add_invite_code(code)
-        print(f"[智能精灵] 已生成默认邀请码：{code}")
+        db.add_invite_code(code, max_uses=200)
+        print(f"[妙文] 已生成默认邀请码：{code}（可注册 200 个账号）")
 
 
 _seed_invite()
@@ -124,7 +124,7 @@ def me(uid: int = Depends(current_user)):
 
 @app.get("/api/info")
 def info():
-    return {"name": "智能精灵", "free_until": config.FREE_UNTIL}
+    return {"name": "妙文", "free_until": config.FREE_UNTIL}
 
 
 # ---------------- 设置（密钥加密存储） ----------------
