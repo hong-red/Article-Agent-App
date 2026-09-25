@@ -1,0 +1,12 @@
+{
+  "name": "智能精灵",
+  "short_name": "智能精灵",
+  "description": "公众号文章生成器（App 托管版）",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f6f9",
+  "theme_color": "#20a53a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
