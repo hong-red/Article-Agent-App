@@ -34,6 +34,7 @@ def init_db():
             code TEXT PRIMARY KEY,
             used INTEGER DEFAULT 0,
             used_by TEXT DEFAULT '',
+            max_uses INTEGER DEFAULT 200,
             created_at TEXT
         );
         CREATE TABLE IF NOT EXISTS articles (
@@ -58,6 +59,10 @@ def init_db():
             created_at TEXT
         );
         """)
+        # 兼容旧库：若已有 invite_codes 表但缺 max_uses 列，则补上
+        cols = [r[1] for r in c.execute("PRAGMA table_info(invite_codes)").fetchall()]
+        if "max_uses" not in cols:
+            c.execute("ALTER TABLE invite_codes ADD COLUMN max_uses INTEGER DEFAULT 200")
 
 
 def _now():
@@ -109,9 +114,12 @@ def delete_session(token):
 
 
 # ---------------- 邀请码 ----------------
-def add_invite_code(code):
+def add_invite_code(code, max_uses=200):
     with conn() as c:
-        c.execute("INSERT OR IGNORE INTO invite_codes(code,used,created_at) VALUES(?,0,?)", (code, _now()))
+        c.execute(
+            "INSERT OR IGNORE INTO invite_codes(code,used,max_uses,created_at) VALUES(?,0,?,?)",
+            (code, max_uses, _now()),
+        )
 
 
 def list_invite_codes():
@@ -122,9 +130,10 @@ def list_invite_codes():
 def use_invite_code(code, username):
     with conn() as c:
         row = c.execute("SELECT * FROM invite_codes WHERE code=?", (code,)).fetchone()
-        if not row or row["used"]:
+        if not row or row["used"] >= row["max_uses"]:
             return False
-        c.execute("UPDATE invite_codes SET used=1, used_by=? WHERE code=?", (username, code))
+        used_by = f"{row['used_by']},{username}" if row["used_by"] else username
+        c.execute("UPDATE invite_codes SET used=used+1, used_by=? WHERE code=?", (used_by, code))
         return True
 
 
