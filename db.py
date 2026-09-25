@@ -71,7 +71,7 @@ def create_user(username, password_salt, password_hash, invite_code=""):
             "INSERT INTO users(username,password_salt,password_hash,invite_code,created_at) VALUES(?,?,?,?,?)",
             (username, password_salt, password_hash, invite_code, _now()),
         )
-        return c.lastrowid
+        return c.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
 def get_user_by_username(username):
@@ -140,7 +140,7 @@ def insert_article(user_id, topic, title, content_md, content_html, cover, theme
             "INSERT INTO articles(user_id,topic,title,content_md,content_html,cover,theme,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
             (user_id, topic, title, content_md, content_html, cover, theme, "draft", _now(), _now()),
         )
-        return c.lastrowid
+        return c.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
 def get_article(user_id, article_id):
@@ -181,7 +181,7 @@ def insert_material(user_id, name, path, size):
             "INSERT INTO materials(user_id,name,path,size,created_at) VALUES(?,?,?,?,?)",
             (user_id, name, path, size, _now()),
         )
-        return c.lastrowid
+        return c.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
 def get_material(user_id, material_id):
