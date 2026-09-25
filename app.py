@@ -630,12 +630,28 @@ def _resolve_wechat_images(appid, appsecret, html):
     return _IMG_TAG_RE.sub(repl, html)
 
 
-def _plain_digest(md, limit=100):
+def _truncate_bytes(s, max_bytes):
+    """按 UTF-8 字节数截断，不切碎多字节字符（中文 1 字 = 3 字节）。"""
+    b = s.encode("utf-8")
+    if len(b) <= max_bytes:
+        return s
+    out, total = [], 0
+    for ch in s:
+        bl = len(ch.encode("utf-8"))
+        if total + bl > max_bytes:
+            break
+        out.append(ch)
+        total += bl
+    return "".join(out)
+
+
+def _plain_digest(md, max_bytes=120):
+    """从正文生成摘要，按字节截到微信 description 上限（120 字节 ≈ 40 汉字）。"""
     text = re.sub(r'[#>*`\-]', '', md)
     text = re.sub(r'!\[[^\]]*\]\([^)]*\)', '', text)
     text = re.sub(r'\[([^\]]+)\]\([^)]*\)', r'\1', text)
     text = re.sub(r'\s+', ' ', text).strip()
-    return text[:limit]
+    return _truncate_bytes(text, max_bytes)
 
 
 @app.post("/api/articles/{article_id}/push")
