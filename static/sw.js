@@ -1,4 +1,4 @@
-const CACHE = "zhineng-jingling-v1";
+const CACHE = "miaowen-v1";
 const ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/manifest.json", "/icon.svg"];
 
 self.addEventListener("install", (e) => {
