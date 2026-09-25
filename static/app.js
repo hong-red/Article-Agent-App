@@ -1,4 +1,4 @@
-/* 智能精灵 App —— 前端逻辑（PWA） */
+/* 妙文 App —— 前端逻辑（PWA） */
 const $ = (id) => document.getElementById(id);
 
 let TOKEN = localStorage.getItem("token") || "";
@@ -314,7 +314,7 @@ $("btn-export").addEventListener("click", async () => {
     const data = await api("/api/export");
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = `智能精灵数据_${data.username || "user"}.json`;
+    a.href = URL.createObjectURL(blob); a.download = `妙文数据_${data.username || "user"}.json`;
     a.click(); URL.revokeObjectURL(a.href);
     toast("数据已导出", "success");
   } catch (e) { toast(e.message, "error"); }
