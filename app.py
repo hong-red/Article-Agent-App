@@ -503,7 +503,7 @@ def export_data(uid: int = Depends(current_user)):
 # ---------------- 素材 ----------------
 @app.get("/api/materials")
 def list_materials(uid: int = Depends(current_user)):
-    items = db.list_materials(uid)
+    items = [dict(r) for r in db.list_materials(uid)]
     for it in items:
         it["url"] = f"/api/materials/{it['id']}/file"
     return items
