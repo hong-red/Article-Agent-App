@@ -267,6 +267,7 @@ def _read_material_text(uid, material_id, limit=8000):
     except (TypeError, ValueError):
         return None
     m = db.get_material(uid, mid)
+    m = dict(m) if m else None
     if not m or not m.get("path") or not os.path.exists(m["path"]):
         return None
     p = m["path"]
