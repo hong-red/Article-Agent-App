@@ -5,6 +5,7 @@
 import json
 import os
 import re
+import shutil
 import time
 
 from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, File
@@ -224,6 +225,8 @@ class ContentReq(BaseModel):
     feedback: str = ""
     previous_content: str = ""
     template: str = "general"
+    material_ids: list = []
+    material_note: str = ""
 
 
 class FormatReq(BaseModel):
@@ -255,6 +258,29 @@ def _llm_for(uid, messages, temperature=0.8, max_tokens=4096):
         temperature=temperature,
         max_tokens=max_tokens,
     )
+
+
+def _read_material_text(uid, material_id, limit=8000):
+    """读取文本类素材内容供 AI 引用；图片/二进制返回 None。"""
+    try:
+        mid = int(material_id)
+    except (TypeError, ValueError):
+        return None
+    m = db.get_material(uid, mid)
+    if not m or not m.get("path") or not os.path.exists(m["path"]):
+        return None
+    ext = os.path.splitext(m["path"])[1].lower()
+    if ext in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".zip", ".pdf", ".doc", ".docx"):
+        return None
+    try:
+        with open(m["path"], "r", encoding="utf-8", errors="ignore") as f:
+            text = f.read()
+    except Exception:
+        return None
+    text = (text or "").strip()
+    if not text:
+        return None
+    return f"【素材《{m['name']}》】\n{text[:limit]}"
 
 
 @app.post("/api/generate/titles")
@@ -295,6 +321,21 @@ def generate_content(req: ContentReq, uid: int = Depends(current_user)):
     tpl_line = f"写作模板：{tpl['content']}" if tpl["content"] else ""
     feedback_line = f"【修改要求】{req.feedback}\n请重点满足这条修改要求。" if req.feedback else ""
     previous_line = f"【上一版内容】\n{req.previous_content}\n请基于这版修改，而不是完全重写。" if req.previous_content else ""
+
+    # 素材库：读取选中素材内容供 AI 引用
+    mat_segs = []
+    for mid in (req.material_ids or []):
+        seg = _read_material_text(uid, mid)
+        if seg:
+            mat_segs.append(seg)
+    material_block = ""
+    if mat_segs:
+        note = f"优化要求：{req.material_note}\n" if (req.material_note or "").strip() else ""
+        material_block = (
+            "\n【参考资料/素材】请务必结合下面的素材内容来写，引用其中的关键信息、数据或观点。\n"
+            + note + "\n\n".join(mat_segs) + "\n"
+        )
+
     user = (
         f"请根据下面的题目和主题，写一篇结构完整、可直接发布的公众号文章。\n\n"
         f"题目：{req.title}\n主题：{req.topic}\n"
@@ -303,6 +344,7 @@ def generate_content(req: ContentReq, uid: int = Depends(current_user)):
         + (tpl_line + "\n" if tpl_line else "")
         + "\n写作要求：1. 用 Markdown：小标题用 ##，适当列表/加粗/引用 2. 有清晰开头、分点、结尾 "
         "3. 语言自然像真人，避免 AI 腔 4. 篇幅 1000~1800 字\n"
+        + (material_block + "\n" if material_block else "")
         + (feedback_line + "\n" if feedback_line else "")
         + (previous_line + "\n" if previous_line else "")
     )
@@ -461,7 +503,10 @@ def export_data(uid: int = Depends(current_user)):
 # ---------------- 素材 ----------------
 @app.get("/api/materials")
 def list_materials(uid: int = Depends(current_user)):
-    return db.list_materials(uid)
+    items = db.list_materials(uid)
+    for it in items:
+        it["url"] = f"/api/materials/{it['id']}/file"
+    return items
 
 
 @app.post("/api/materials")
@@ -494,6 +539,34 @@ def delete_material(material_id: int, uid: int = Depends(current_user)):
                 pass
         db.delete_material(uid, material_id)
     return {"ok": True}
+
+
+@app.get("/api/materials/{material_id}/file")
+def material_file(material_id: int, uid: int = Depends(current_user)):
+    """按用户隔离地访问素材文件本体（供缩略图/预览用）。"""
+    m = db.get_material(uid, material_id)
+    if not m or not m["path"] or not os.path.exists(m["path"]):
+        raise HTTPException(status_code=404, detail="素材不存在")
+    return FileResponse(m["path"])
+
+
+@app.post("/api/materials/{material_id}/use")
+def use_material(material_id: int, uid: int = Depends(current_user)):
+    """把素材复制进图片库，返回 /images/ 地址，从而可被选图/预览/推送复用。"""
+    m = db.get_material(uid, material_id)
+    if not m or not m["path"] or not os.path.exists(m["path"]):
+        raise HTTPException(status_code=404, detail="素材不存在")
+    config.ensure_dirs()
+    name = os.path.basename(m["path"])
+    base, ext = os.path.splitext(name)
+    dest = os.path.join(IMAGES_DIR, name)
+    i = 1
+    while os.path.exists(dest):
+        dest = os.path.join(IMAGES_DIR, f"{base}_{i}{ext}")
+        i += 1
+    shutil.copyfile(m["path"], dest)
+    final = os.path.basename(dest)
+    return {"name": final, "url": f"/images/{final}"}
 
 
 # ---------------- 图片库（MVP 共享） ----------------
